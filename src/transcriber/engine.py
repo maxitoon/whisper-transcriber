@@ -145,9 +145,9 @@ class TranscriptionEngine:
         seconds = seconds % 60
 
         if vtt:
-            return f"{hours"02d"}:{minutes"02d"}:{seconds"06.3f"}".replace(".", ",")
+            return f"{hours:02d}:{minutes:02d}:{seconds:06.3f}".replace(".", ",")
         else:
-            return f"{hours"02d"}:{minutes"02d"}:{seconds"06.3f"}"
+            return f"{hours:02d}:{minutes:02d}:{seconds:06.3f}"
 
     def _clean_result_for_json(self, result: Dict[str, Any]) -> Dict[str, Any]:
         """Remove non-serializable data from result."""

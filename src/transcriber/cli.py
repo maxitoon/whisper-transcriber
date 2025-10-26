@@ -7,8 +7,14 @@ from typing import Optional
 
 import click
 
-from .engine import TranscriptionEngine
-from .downloader import YouTubeDownloader
+try:
+    # Try absolute imports first (when installed as package)
+    from transcriber.engine import TranscriptionEngine
+    from transcriber.downloader import YouTubeDownloader
+except ImportError:
+    # Fall back to relative imports (when running as module)
+    from .engine import TranscriptionEngine
+    from .downloader import YouTubeDownloader
 
 
 @click.group()
