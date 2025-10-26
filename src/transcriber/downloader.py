@@ -5,7 +5,11 @@ import tempfile
 from pathlib import Path
 from typing import Optional
 
-import yt_dlp
+try:
+    import yt_dlp
+    YT_DLP_AVAILABLE = True
+except ImportError:
+    YT_DLP_AVAILABLE = False
 
 
 class YouTubeDownloader:
@@ -17,6 +21,12 @@ class YouTubeDownloader:
         Args:
             output_dir: Directory to save downloads (default: system temp)
         """
+        if not YT_DLP_AVAILABLE:
+            raise ImportError(
+                "yt-dlp is not installed. "
+                "Install it with: pip install yt-dlp"
+            )
+
         self.output_dir = Path(output_dir) if output_dir else Path(tempfile.gettempdir())
         self.output_dir.mkdir(exist_ok=True)
 

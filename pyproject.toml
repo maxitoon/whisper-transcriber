@@ -26,6 +26,7 @@ dependencies = [
     "click>=8.0.0",
     "tqdm>=4.0.0",
     "numpy>=1.20.0",
+    "yt-dlp>=2024.0.0",
     # Optional: uncomment for Python Whisper support
     # "openai-whisper",
     # "torch",

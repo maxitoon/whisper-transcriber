@@ -3,6 +3,7 @@
 click>=8.0.0
 tqdm>=4.0.0
 numpy>=1.20.0
+yt-dlp>=2024.0.0
 
 # Optional: For future Python-based transcription
 # Uncomment these if you want to use Python Whisper instead of whisper-cli:
@@ -12,6 +13,5 @@ numpy>=1.20.0
 
 # External tools (install separately):
 # - whisper-cli from: https://github.com/ggerganov/whisper.cpp
-# - yt-dlp: pip install yt-dlp
 # - ffmpeg: brew install ffmpeg (macOS) / apt install ffmpeg (Ubuntu)
 # - sox: brew install sox (macOS) / apt install sox (Ubuntu)
