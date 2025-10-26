@@ -1,7 +1,6 @@
 """Tests for transcription engine."""
 
 import pytest
-from pathlib import Path
 from unittest.mock import Mock, patch
 
 from transcriber.engine import TranscriptionEngine, WHISPER_AVAILABLE

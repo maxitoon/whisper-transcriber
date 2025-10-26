@@ -4,8 +4,8 @@ import pytest
 from click.testing import CliRunner
 
 from transcriber.cli import main
-from transcriber.engine import WHISPER_AVAILABLE
 from transcriber.downloader import YT_DLP_AVAILABLE
+from transcriber.engine import WHISPER_AVAILABLE
 
 
 class TestCLI:

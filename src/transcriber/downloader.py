@@ -1,6 +1,5 @@
 """YouTube audio downloader using yt-dlp."""
 
-import os
 import tempfile
 from pathlib import Path
 from typing import Optional

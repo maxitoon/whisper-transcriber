@@ -1,14 +1,12 @@
 """Transcription engine using OpenAI Whisper."""
 
 import json
-import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 try:
     import torch
     import whisper
-    from tqdm import tqdm
     WHISPER_AVAILABLE = True
 except ImportError:
     # Fallback when Python Whisper is not installed (using whisper-cli)
