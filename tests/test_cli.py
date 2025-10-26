@@ -4,6 +4,8 @@ import pytest
 from click.testing import CliRunner
 
 from transcriber.cli import main
+from transcriber.engine import WHISPER_AVAILABLE
+from transcriber.downloader import YT_DLP_AVAILABLE
 
 
 class TestCLI:
@@ -30,6 +32,7 @@ class TestCLI:
         assert "tiny" in result.output
         assert "large" in result.output
 
+    @pytest.mark.skipif(not WHISPER_AVAILABLE, reason="Python Whisper not installed")
     def test_transcribe_missing_file(self):
         """Test transcribe command with missing file."""
         runner = CliRunner()
@@ -38,9 +41,28 @@ class TestCLI:
         # Should fail gracefully
         assert result.exit_code != 0
 
+    def test_transcribe_without_whisper(self):
+        """Test transcribe command when Whisper is not available."""
+        if not WHISPER_AVAILABLE:
+            runner = CliRunner()
+            result = runner.invoke(main, ["transcribe", "test.mp3"])
+
+            assert result.exit_code != 0
+            assert "Python Whisper is not installed" in result.output
+
+    @pytest.mark.skipif(not YT_DLP_AVAILABLE, reason="yt-dlp not installed")
     def test_youtube_missing_url(self):
         """Test youtube command with missing URL."""
         runner = CliRunner()
         result = runner.invoke(main, ["youtube"])
 
         assert result.exit_code != 0
+
+    def test_youtube_without_ytdlp(self):
+        """Test youtube command when yt-dlp is not available."""
+        if not YT_DLP_AVAILABLE:
+            runner = CliRunner()
+            result = runner.invoke(main, ["youtube", "https://youtube.com/watch?v=test"])
+
+            assert result.exit_code != 0
+            assert "yt-dlp is not installed" in result.output

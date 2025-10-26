@@ -4,12 +4,13 @@ import pytest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from transcriber.engine import TranscriptionEngine
+from transcriber.engine import TranscriptionEngine, WHISPER_AVAILABLE
 
 
 class TestTranscriptionEngine:
     """Test cases for transcription engine."""
 
+    @pytest.mark.skipif(not WHISPER_AVAILABLE, reason="Python Whisper not installed")
     def test_init_default(self):
         """Test engine initialization with default parameters."""
         engine = TranscriptionEngine()
@@ -18,6 +19,7 @@ class TestTranscriptionEngine:
         assert engine.verbose is False
         assert engine.model is not None
 
+    @pytest.mark.skipif(not WHISPER_AVAILABLE, reason="Python Whisper not installed")
     def test_init_custom_params(self):
         """Test engine initialization with custom parameters."""
         engine = TranscriptionEngine(model="tiny", device="cpu", verbose=True)
@@ -25,6 +27,13 @@ class TestTranscriptionEngine:
         assert engine.device == "cpu"
         assert engine.verbose is True
 
+    def test_whisper_not_available(self):
+        """Test behavior when Python Whisper is not available."""
+        if not WHISPER_AVAILABLE:
+            with pytest.raises(ImportError, match="Python Whisper is not installed"):
+                TranscriptionEngine()
+
+    @pytest.mark.skipif(not WHISPER_AVAILABLE, reason="Python Whisper not installed")
     def test_format_timestamp_srt(self):
         """Test SRT timestamp formatting."""
         engine = TranscriptionEngine()
@@ -33,6 +42,7 @@ class TestTranscriptionEngine:
         assert engine._format_timestamp(0) == "00:00:00.000"
         assert engine._format_timestamp(3661.5) == "01:01:01.500"
 
+    @pytest.mark.skipif(not WHISPER_AVAILABLE, reason="Python Whisper not installed")
     def test_format_timestamp_vtt(self):
         """Test VTT timestamp formatting."""
         engine = TranscriptionEngine()
@@ -41,6 +51,7 @@ class TestTranscriptionEngine:
         assert engine._format_timestamp(0, vtt=True) == "00:00:00,000"
         assert engine._format_timestamp(3661.5, vtt=True) == "01:01:01,500"
 
+    @pytest.mark.skipif(not WHISPER_AVAILABLE, reason="Python Whisper not installed")
     def test_clean_result_for_json(self):
         """Test cleaning result for JSON serialization."""
         engine = TranscriptionEngine()
@@ -63,6 +74,7 @@ class TestTranscriptionEngine:
         # Should be identical since no tensors or complex objects
         assert clean_result == mock_result
 
+    @pytest.mark.skipif(not WHISPER_AVAILABLE, reason="Python Whisper not installed")
     @patch('whisper.load_model')
     def test_load_model_called(self, mock_load_model):
         """Test that whisper.load_model is called during initialization."""
