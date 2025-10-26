@@ -13,71 +13,98 @@ A local-first transcription tool using OpenAI Whisper with YouTube download capa
 
 ### Prerequisites
 
-- Python 3.8+
-- FFmpeg (for audio processing)
-- PyTorch (will be installed automatically)
+- **whisper-cli** (command-line Whisper tool)
+- **yt-dlp** (YouTube downloader)
+- **ffmpeg** (audio processing)
+- **sox** (for live recording)
 
-### One-Command Setup
+### Installation
 
+**1. Install whisper-cli:**
 ```bash
-# 1. Clone and setup
-git clone <repository-url>
-cd whisper-transcriber
-
-# 2. Install dependencies
-make dev
-
-# 3. Run transcription
-make transcribe
+# Download from: https://github.com/ggerganov/whisper.cpp
+# Follow installation instructions for your platform
 ```
 
-### FFmpeg Installation
+**2. Install system dependencies:**
 
 **macOS:**
 ```bash
-brew install ffmpeg
+brew install ffmpeg sox yt-dlp
 ```
 
 **Ubuntu/Debian:**
 ```bash
-sudo apt install ffmpeg
+sudo apt install ffmpeg sox yt-dlp
 ```
 
 **Windows:**
-Download from [FFmpeg website](https://ffmpeg.org/download.html) or use Chocolatey:
 ```bash
-choco install ffmpeg
+# Install via Chocolatey or download manually:
+choco install ffmpeg sox yt-dlp
+```
+
+**3. Download Whisper models:**
+```bash
+# The script will prompt you to download models to ~/whisper-models/
+# Download: ggml-base.en.bin, ggml-small.bin, ggml-medium.bin, ggml-large.bin
+```
+
+**4. Run transcription:**
+```bash
+# From the whisper-transcriber directory
+../whisper-transcribe-with-download.sh
+
+# Or create a convenient symlink:
+ln -s ../whisper-transcribe-with-download.sh transcribe.sh
+./transcribe.sh
 ```
 
 ## Usage Examples
 
-### Basic Transcription
+### Interactive Mode
 ```bash
-# Transcribe audio/video file
-python src/transcriber/cli.py input.mp4
+# Run the main script (interactive menu)
+../whisper-transcribe-with-download.sh
+
+# Choose from options:
+# 1) 🔴 ORIGINAL Live Recording + Live Transcript
+# 2) 🎥 YouTube Video + Transcript
+# 3) 📥 YouTube Video Download Only
+# 4) 💼 Zoom Recording + Transcript
+# 5) 💬 WhatsApp Audio + Transcript
+# 6) 📁 Other Audio/Video File + Transcript
 ```
 
 ### YouTube Transcription
 ```bash
-# Download and transcribe YouTube video
-python src/transcriber/cli.py --youtube "https://youtube.com/watch?v=..."
+# The script will prompt for URL and handle download + transcription
+# Choose option 2 for "YouTube Video + Transcript"
 ```
 
-## Available Scripts
+### Live Transcription
+```bash
+# Records from microphone and shows real-time transcription
+# Choose option 1 for "ORIGINAL Live Recording + Live Transcript"
+```
 
-This project includes multiple specialized transcription scripts:
+## Main Script
 
-- **Basic transcription**: `whisper-transcribe.sh`
-- **Live transcription**: `whisper-transcribe-live.sh`
-- **YouTube integration**: `whisper-transcribe-with-download.sh`
-- **Real-time processing**: `whisper-transcribe-realtime.sh`
+This project uses the comprehensive `whisper-transcribe-with-download.sh` script which provides:
+
+- 🎙️ **Live transcription** with real-time text display
+- 🎥 **YouTube download + transcription** in one command
+- 📁 **Local file transcription** (Zoom, WhatsApp, audio/video files)
+- 🧹 **Automatic cleanup** of old files (7-day retention)
 
 See the [scripts documentation](docs/scripts.md) for detailed usage.
 
 ## Development
 
+The project is currently focused on the main `whisper-transcribe-with-download.sh` script. The Python modules in `src/` provide a foundation for future development.
+
 ```bash
-# Install development dependencies
+# Install Python dependencies (for future development)
 make dev
 
 # Run tests
@@ -92,9 +119,9 @@ make lint
 
 ## Architecture
 
-- **Core Library**: `src/transcriber/` - Main transcription functionality
-- **CLI Interface**: `src/transcriber/cli.py` - Command-line interface
-- **External Scripts**: Reference existing whisper scripts in parent directory
+- **Main Script**: `../whisper-transcribe-with-download.sh` - Complete transcription solution
+- **Python Modules**: `src/transcriber/` - Future development framework
+- **Documentation**: Complete guides and examples
 
 See [architecture.md](docs/architecture.md) for detailed design.
 
@@ -129,17 +156,30 @@ MIT - see [LICENSE](LICENSE) file.
 
 ### Common Issues
 
-**FFmpeg not found:**
-- Ensure FFmpeg is installed and in your PATH
-- On macOS: `brew install ffmpeg`
+**whisper-cli not found:**
+- Download and install whisper-cli from: https://github.com/ggerganov/whisper.cpp
+- Ensure it's in your PATH or provide full path to executable
 
-**PyTorch/CUDA issues:**
-- The project uses CPU-only PyTorch by default
-- For GPU support, install CUDA-enabled PyTorch manually:
-  ```bash
-  pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
-  ```
+**FFmpeg/Sox not found:**
+- Ensure FFmpeg and Sox are installed and in your PATH
+- On macOS: `brew install ffmpeg sox`
+- On Ubuntu: `sudo apt install ffmpeg sox`
+
+**yt-dlp not found:**
+- Install yt-dlp: `pip install yt-dlp` or `brew install yt-dlp`
+- Update regularly: `yt-dlp -U`
+
+**Whisper models missing:**
+- Download models to `~/whisper-models/` directory
+- Available models: `ggml-base.en.bin`, `ggml-small.bin`, `ggml-medium.bin`, `ggml-large.bin`
+- The script will guide you through model selection
 
 **Memory issues:**
-- Use smaller models (tiny, base) for limited RAM
-- Process files in chunks for very large files
+- Use smaller models (base, small) for limited RAM
+- Close other applications during transcription
+- Ensure adequate disk space for downloads
+
+**YouTube download fails:**
+- Check internet connection stability
+- Some videos may be region-restricted or private
+- Try different video quality settings

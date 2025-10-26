@@ -14,7 +14,7 @@ from .downloader import YouTubeDownloader
 @click.group()
 @click.version_option(version="0.1.0")
 def main() -> None:
-    """Whisper Transcriber - Local-first transcription tool using OpenAI Whisper."""
+    """Whisper Transcriber - Local-first transcription tool using whisper-cli."""
     pass
 
 
@@ -144,7 +144,7 @@ def youtube(
 
 @main.command()
 def models() -> None:
-    """List available Whisper models."""
+    """List available Whisper models and show setup info."""
     models_info = {
         "tiny": "39 MB - Fastest, least accurate",
         "base": "74 MB - Good balance of speed/accuracy",
@@ -158,6 +158,33 @@ def models() -> None:
     click.echo("Available Whisper models:")
     for model, description in models_info.items():
         click.echo(f"  {model:10} - {description}")
+
+    click.echo("\n📁 Model files (ggml-*.bin) should be placed in: ~/whisper-models/")
+    click.echo("🔧 For the main script, run: make transcribe")
+
+
+@main.command()
+def main_script() -> None:
+    """Run the main transcription script."""
+    import subprocess
+    import os
+
+    script_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "..", "whisper-transcribe-with-download.sh")
+
+    click.echo("🎙️  Launching main transcription script...")
+    click.echo(f"Script: {script_path}")
+
+    try:
+        # Change to the script directory and run it
+        script_dir = os.path.dirname(script_path)
+        result = subprocess.run(["./whisper-transcribe-with-download.sh"],
+                              cwd=script_dir, shell=True)
+        sys.exit(result.returncode)
+    except Exception as e:
+        click.echo(f"Error running main script: {e}", err=True)
+        click.echo("Make sure whisper-cli and dependencies are installed.")
+        click.echo("See README.md for setup instructions.")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

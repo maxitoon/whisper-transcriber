@@ -2,59 +2,57 @@
 
 ## Overview
 
-Whisper Transcriber is designed as a modular system that can work with existing transcription scripts while providing a clean, extensible architecture for new development.
+Whisper Transcriber is built around the comprehensive `whisper-transcribe-with-download.sh` script, with Python modules providing a foundation for future development and modular features.
 
 ## Core Components
 
-### CLI Interface (`src/transcriber/cli.py`)
-- Main entry point for the application
-- Handles command-line arguments and options
-- Orchestrates transcription workflow
+### Main Script (`../whisper-transcribe-with-download.sh`)
+- Interactive menu-driven interface
+- Live transcription with real-time text display
+- YouTube download and transcription in one workflow
+- Multi-format support (Zoom, WhatsApp, audio/video files)
+- Automatic cleanup and file management
 
-### Transcription Engine (`src/transcriber/engine.py`)
-- Core transcription functionality using OpenAI Whisper
-- Model loading and management
-- Audio processing and chunking
+### Python Framework (`src/transcriber/`)
+- **CLI Interface** (`cli.py`) - Command-line interface foundation
+- **Transcription Engine** (`engine.py`) - Whisper integration framework
+- **YouTube Downloader** (`downloader.py`) - Download functionality
+- **Output Formatters** (`formatters/`) - Multiple format support
 
-### YouTube Downloader (`src/transcriber/downloader.py`)
-- YouTube audio extraction using yt-dlp
-- Format selection and optimization
-- Download progress tracking
+### Supporting Infrastructure
+- **Documentation** - Complete guides and examples
+- **Development Tools** - Testing, linting, and CI/CD
+- **GitHub Integration** - Issue templates, PR templates, workflows
 
-### Output Formatters (`src/transcriber/formatters/`)
-- Multiple output format support (TXT, SRT, VTT, JSON)
-- Timestamp formatting
-- File output management
+## Current Implementation
 
-## Integration with Existing Scripts
-
-The project is designed to coexist with existing transcription scripts:
+The main script handles the complete transcription workflow:
 
 ```
-whisper-transcriber/
-├── src/transcriber/        # New modular code
-└── ../                    # Existing scripts (referenced in docs)
-    ├── whisper-transcribe.sh
-    ├── whisper-transcribe-live.sh
-    └── ...
+User Input → whisper-transcribe-with-download.sh → Output
+     ↓                    ↓                           ↓
+YouTube URL            Interactive Menu           Transcript
+Local File             Download/Process           Audio File
+Live Recording         Whisper Transcription      Cleanup
 ```
 
 ## Data Flow
 
-1. **Input**: Audio/video file or YouTube URL
-2. **Download** (if URL): Extract audio using yt-dlp
-3. **Preprocessing**: Convert to optimal format for Whisper
-4. **Transcription**: Process through Whisper model
-5. **Formatting**: Convert to desired output format
-6. **Output**: Save transcription to file
+1. **User Selection**: Choose from interactive menu options
+2. **Input Handling**: YouTube URL, file path, or live recording
+3. **Download/Record**: Extract audio or record from microphone
+4. **Model Selection**: Choose appropriate Whisper model
+5. **Transcription**: Process through whisper-cli
+6. **Output**: Save transcript with timestamps
+7. **Cleanup**: Remove old files (7-day retention)
 
 ## Dependencies
 
 ### Core Dependencies
-- **openai-whisper**: Transcription engine
-- **torch/torchaudio**: ML framework and audio processing
-- **yt-dlp**: YouTube downloading
-- **click**: CLI framework
+- **whisper-cli**: Command-line Whisper transcription tool
+- **yt-dlp**: YouTube video/audio downloading
+- **ffmpeg**: Audio/video format conversion
+- **sox**: Audio recording and processing
 
 ### Development Dependencies
 - **pytest**: Testing framework
@@ -64,17 +62,19 @@ whisper-transcriber/
 
 ## Configuration
 
-The application uses environment variables and configuration files:
+The script uses simple directory-based configuration:
 
-- **Environment variables**: Model selection, device settings
-- **Config files**: Output formats, quality settings
-- **CLI arguments**: Runtime options
+- **Models**: `~/whisper-models/` (ggml-*.bin files)
+- **Downloads**: `~/whisper-downloads/` (temporary files)
+- **Transcripts**: `~/Desktop/Transcripts/` (output files)
+- **Cleanup**: Automatic removal of files older than 7 days
 
-## Extensibility
+## Future Development
 
-The architecture supports easy extension through:
+The Python framework in `src/transcriber/` provides:
 
-- **Plugin system**: Additional output formats
-- **Model support**: Multiple Whisper model sizes
-- **Source support**: Beyond YouTube (local files, other platforms)
-- **Processing options**: Custom preprocessing, chunking strategies
+- **Modular Components**: Separate CLI, engine, and downloader
+- **Multiple Formats**: Support for TXT, SRT, VTT, JSON outputs
+- **API Integration**: REST API for web applications
+- **Plugin System**: Extensible architecture for new features
+- **Testing**: Comprehensive test coverage

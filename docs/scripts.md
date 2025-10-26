@@ -2,121 +2,89 @@
 
 This project includes references to existing transcription scripts in the parent directory. These scripts provide various approaches to transcription and can serve as examples or be used directly.
 
-## Available Scripts
+## Main Script
 
-The following scripts are available in the parent directory:
-
-### Basic Transcription
-- **`whisper-transcribe.sh`** - Basic transcription functionality
-- **`whisper-transcribe-fixed.sh`** - Improved basic transcription
-- **`whisper-transcribe-complete.sh`** - Complete transcription workflow
-
-### Live Transcription
-- **`whisper-transcribe-live.sh`** - Live audio transcription
-- **`whisper-transcribe-realtime.sh`** - Real-time processing
-- **`whisper-transcribe-streaming.sh`** - Streaming transcription
-
-### Advanced Features
-- **`whisper-transcribe-with-download.sh`** - YouTube download + transcription
-- **`whisper-transcribe-with-progress.sh`** - Progress tracking
-- **`whisper-transcribe-smart.sh`** - Smart transcription features
-
-### Specialized Scripts
-- **`whisper-transcribe-ultimate.sh`** - Advanced comprehensive script
-- **`whisper-transcribe-true-live.sh`** - True live transcription
-- **`whisper-transcribe-working-live.sh`** - Working live implementation
+The project uses the single comprehensive `whisper-transcribe-with-download.sh` script which provides all transcription functionality in one tool.
 
 ## Usage Examples
 
-### Basic Usage
+### Quick Start
 ```bash
-# Basic transcription
-../whisper-transcribe.sh input.mp4
-
-# With fixed improvements
-../whisper-transcribe-fixed.sh input.mp4
+# Run the main transcription script
+../whisper-transcribe-with-download.sh
 ```
 
-### YouTube Integration
+### YouTube Transcription
 ```bash
-# Download and transcribe YouTube video
-../whisper-transcribe-with-download.sh "https://youtube.com/watch?v=..."
+# The script will prompt for YouTube URL and options
+# Choose option 2 for "YouTube Video + Transcript"
+# Choose option 3 for "YouTube Video Download Only"
 ```
 
 ### Live Transcription
 ```bash
-# Live microphone transcription
-../whisper-transcribe-live.sh
+# Choose option 1 for "ORIGINAL Live Recording + Live Transcript"
+# Records from microphone and shows real-time transcription
+```
 
-# Real-time processing
-../whisper-transcribe-realtime.sh
+### Local Files
+```bash
+# Choose options 4-6 for Zoom, WhatsApp, or other audio/video files
+# The script will prompt for file paths
 ```
 
 ## Script Features
 
-### Common Features
-- Audio format conversion
-- Model selection options
-- Output format selection
-- Error handling
-- Progress indicators
+### Core Features
+- 🎙️ **Live transcription** with real-time text display
+- 🎥 **YouTube download** and transcription in one workflow
+- 📁 **Multi-format support** (Zoom, WhatsApp, audio/video files)
+- 🧹 **Automatic cleanup** (removes files older than 7 days)
+- 🌍 **Multi-language support** with model selection
+- 📱 **Interactive interface** with color-coded output
 
 ### Advanced Features
-- Batch processing
-- Language detection
-- Speaker diarization
-- Timestamp alignment
-- Quality optimization
+- Real-time audio processing during recording
+- Multiple Whisper model support (base, small, medium, large)
+- Automatic audio format detection and conversion
+- Progress tracking and status updates
+- Error handling and recovery
+- Timestamped output files
 
-## Integration with New CLI
+## Requirements
 
-The new CLI tool (`src/transcriber/cli.py`) provides a more structured approach while maintaining compatibility with these existing scripts:
+The script requires:
+- **whisper-cli** (Whisper command-line tool)
+- **yt-dlp** (YouTube downloader)
+- **ffmpeg** (audio processing)
+- **sox** (for live recording)
 
-```bash
-# New CLI approach
-python src/transcriber/cli.py input.mp4
+## Setup
 
-# Or use existing scripts
-../whisper-transcribe.sh input.mp4
-```
+1. **Install whisper-cli:**
+   ```bash
+   # Download and install whisper-cli from the official repository
+   ```
 
-## Migration Guide
+2. **Download Whisper models:**
+   ```bash
+   # The script will guide you to download models to ~/whisper-models/
+   # Available: ggml-base.en.bin, ggml-small.bin, ggml-medium.bin, ggml-large.bin
+   ```
 
-### From Scripts to CLI
+3. **Install dependencies:**
+   ```bash
+   # Ubuntu/Debian:
+   sudo apt install ffmpeg sox yt-dlp
 
-**Basic transcription:**
-```bash
-# Old
-../whisper-transcribe.sh input.mp4
-
-# New
-python src/transcriber/cli.py input.mp4
-```
-
-**YouTube transcription:**
-```bash
-# Old
-../whisper-transcribe-with-download.sh "https://youtube.com/watch?v=..."
-
-# New
-python src/transcriber/cli.py --youtube "https://youtube.com/watch?v=..."
-```
-
-## Contributing to Scripts
-
-When improving existing scripts:
-
-1. Maintain backward compatibility
-2. Add proper error handling
-3. Include usage documentation
-4. Test on multiple platforms
-5. Consider adding to the new CLI system
+   # macOS:
+   brew install ffmpeg sox yt-dlp
+   ```
 
 ## Best Practices
 
-- Use absolute paths when possible
-- Handle different audio formats gracefully
-- Provide clear error messages
-- Include progress indicators for long operations
-- Test with various model sizes
-- Consider memory usage for large files
+- Run from the directory containing the script
+- Ensure whisper-cli and models are properly installed
+- Check available disk space for downloads
+- Use stable internet connection for YouTube downloads
+- Test with short clips before processing long videos

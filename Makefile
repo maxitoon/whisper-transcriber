@@ -6,8 +6,12 @@ PIP := pip3
 help: ## Show this help message
 	@echo 'Usage: make [target]'
 	@echo ''
-	@echo 'Targets:'
+	@echo 'Main Commands:'
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %-15s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@echo ''
+	@echo 'Quick Start:'
+	@echo '  make quick-setup    # Show setup instructions'
+	@echo '  make transcribe     # Run main transcription script'
 
 dev: ## Install development dependencies
 	$(PIP) install -r requirements-dev.txt
@@ -34,9 +38,18 @@ clean: ## Clean build artifacts
 	find . -type d -name __pycache__ -exec rm -rf {} +
 	find . -type f -name "*.pyc" -delete
 
-transcribe: ## Run basic transcription (example usage)
-	@echo "Usage: python src/transcriber/cli.py <audio_file>"
-	@echo "Or use existing scripts from parent directory"
+transcribe: ## Run the main transcription script
+	@echo "🎙️  Starting Whisper Transcription..."
+	@echo "Make sure whisper-cli and dependencies are installed!"
+	@echo ""
+	../whisper-transcribe-with-download.sh
+
+quick-setup: ## Quick setup and run
+	@echo "🔧 Quick Setup Guide:"
+	@echo "1. Install whisper-cli from: https://github.com/ggerganov/whisper.cpp"
+	@echo "2. Install dependencies: brew install ffmpeg sox yt-dlp"
+	@echo "3. Download Whisper models to ~/whisper-models/"
+	@echo "4. Run: make transcribe"
 
 build: ## Build package
 	$(PYTHON) -m build
