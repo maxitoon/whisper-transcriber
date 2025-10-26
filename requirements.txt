@@ -1,18 +1,17 @@
-# Note: This project primarily uses whisper-cli (C++ implementation)
-# Python dependencies are for future development and testing
+# Core dependencies for the Python framework
+# Note: Main transcription uses whisper-cli (external tool)
+click>=8.0.0
+tqdm>=4.0.0
+numpy>=1.20.0
 
-# For future Python-based transcription (optional)
+# Optional: For future Python-based transcription
+# Uncomment these if you want to use Python Whisper instead of whisper-cli:
 # openai-whisper
 # torch
 # torchaudio
 
-# Current dependencies for development tools
-click
-tqdm
-numpy
-
-# Note: Main script uses:
-# - whisper-cli (install separately from https://github.com/ggerganov/whisper.cpp)
-# - yt-dlp (install via: pip install yt-dlp)
-# - ffmpeg (system package)
-# - sox (system package)
+# External tools (install separately):
+# - whisper-cli from: https://github.com/ggerganov/whisper.cpp
+# - yt-dlp: pip install yt-dlp
+# - ffmpeg: brew install ffmpeg (macOS) / apt install ffmpeg (Ubuntu)
+# - sox: brew install sox (macOS) / apt install sox (Ubuntu)

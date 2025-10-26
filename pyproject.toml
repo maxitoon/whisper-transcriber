@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "whisper-transcriber"
 version = "0.1.0"
-description = "Local-first transcription tool using OpenAI Whisper"
+description = "Local-first transcription tool using whisper-cli"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
@@ -23,12 +23,13 @@ classifiers = [
 ]
 requires-python = ">=3.8"
 dependencies = [
-    "openai-whisper",
-    "torch",
-    "torchaudio",
-    "yt-dlp",
-    "click",
-    "tqdm",
+    "click>=8.0.0",
+    "tqdm>=4.0.0",
+    "numpy>=1.20.0",
+    # Optional: uncomment for Python Whisper support
+    # "openai-whisper",
+    # "torch",
+    # "torchaudio",
 ]
 
 [project.optional-dependencies]
