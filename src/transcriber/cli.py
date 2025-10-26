@@ -177,6 +177,17 @@ def main_script() -> None:
 
     script_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "..", "whisper-transcribe-with-download.sh")
 
+    if not os.path.exists(script_path):
+        click.echo("❌ Main script not found!", err=True)
+        click.echo(f"Expected at: {script_path}", err=True)
+        click.echo("\n📋 Setup Instructions:", err=True)
+        click.echo("1. Install whisper-cli: https://github.com/ggerganov/whisper.cpp", err=True)
+        click.echo("2. Install dependencies: pip install yt-dlp && brew install ffmpeg sox", err=True)
+        click.echo("3. Place whisper-transcribe-with-download.sh in the parent directory", err=True)
+        click.echo("4. Download Whisper models to ~/whisper-models/", err=True)
+        click.echo("\n💡 Or run: make quick-setup", err=True)
+        sys.exit(1)
+
     click.echo("🎙️  Launching main transcription script...")
     click.echo(f"Script: {script_path}")
 
