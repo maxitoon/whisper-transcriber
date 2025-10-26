@@ -44,11 +44,21 @@ class TestCLI:
     def test_transcribe_without_whisper(self):
         """Test transcribe command when Whisper is not available."""
         if not WHISPER_AVAILABLE:
-            runner = CliRunner()
-            result = runner.invoke(main, ["transcribe", "test.mp3"])
+            # Create a dummy file so we can test the whisper availability check
+            import tempfile
+            import os
 
-            assert result.exit_code != 0
-            assert "Python Whisper is not installed" in result.output
+            with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as tmp:
+                tmp_path = tmp.name
+
+            try:
+                runner = CliRunner()
+                result = runner.invoke(main, ["transcribe", tmp_path])
+
+                assert result.exit_code != 0
+                assert "Python Whisper is not installed" in result.output
+            finally:
+                os.unlink(tmp_path)
 
     @pytest.mark.skipif(not YT_DLP_AVAILABLE, reason="yt-dlp not installed")
     def test_youtube_missing_url(self):

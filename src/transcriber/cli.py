@@ -25,7 +25,7 @@ def main() -> None:
 
 
 @main.command()
-@click.argument("input_path", type=click.Path(exists=True))
+@click.argument("input_path", type=click.Path())
 @click.option(
     "--output",
     "-o",
@@ -60,6 +60,12 @@ def transcribe(
     verbose: bool,
 ) -> None:
     """Transcribe audio/video file."""
+    # Check if input file exists
+    input_file = Path(input_path)
+    if not input_file.exists():
+        click.echo(f"Error: Input file '{input_path}' does not exist.", err=True)
+        sys.exit(2)
+
     try:
         engine = TranscriptionEngine(model=model, device=device, verbose=verbose)
 
