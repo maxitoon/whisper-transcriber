@@ -5,9 +5,14 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import torch
-import whisper
-from tqdm import tqdm
+try:
+    import torch
+    import whisper
+    from tqdm import tqdm
+    WHISPER_AVAILABLE = True
+except ImportError:
+    # Fallback when Python Whisper is not installed (using whisper-cli)
+    WHISPER_AVAILABLE = False
 
 
 class TranscriptionEngine:
@@ -26,6 +31,13 @@ class TranscriptionEngine:
             device: Device to run on (cpu, cuda)
             verbose: Enable verbose output
         """
+        if not WHISPER_AVAILABLE:
+            raise ImportError(
+                "Python Whisper is not installed. "
+                "This project uses whisper-cli for transcription. "
+                "Install whisper-cli from: https://github.com/ggerganov/whisper.cpp"
+            )
+
         self.model_name = model
         self.device = device
         self.verbose = verbose
