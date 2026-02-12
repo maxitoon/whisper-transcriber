@@ -190,14 +190,15 @@ original_live_transcription() {
     trap cleanup SIGINT SIGTERM
     
     # Incremental chunk-based live transcription
-    # rec writes 16kHz mono 16-bit PCM = 32000 bytes/sec
-    # WAV header is not finalized until rec stops, so we calculate
-    # duration from file size and extract raw PCM bytes directly.
+    # rec writes 16kHz mono 16-bit PCM = 32000 bytes/sec.
+    # The WAV header is NOT finalized until rec stops, so we:
+    #   1. Estimate duration from file size
+    #   2. Tell sox to read the file as raw PCM (-t raw), bypassing the broken header
+    #   3. Use sox trim to extract time ranges directly
     local BYTES_PER_SEC=32000
-    local WAV_HEADER_SIZE=44
     local MIN_CHUNK_SECS=10
     local OVERLAP_SECS=2
-    local last_byte_offset=$WAV_HEADER_SIZE
+    local last_secs=0
     local chunk_count=0
     local running_transcript="/tmp/running_transcript_${TIMESTAMP}.txt"
     touch "$running_transcript"
@@ -206,29 +207,26 @@ original_live_transcription() {
         if [ -f "$recording_file" ]; then
             local current_size
             current_size=$(stat -f%z "$recording_file" 2>/dev/null || echo "0")
-            local new_bytes=$((current_size - last_byte_offset))
-            local new_secs=$((new_bytes / BYTES_PER_SEC))
+            local current_secs=$((current_size / BYTES_PER_SEC))
+            local new_secs=$((current_secs - last_secs))
 
             if [ "$new_secs" -ge "$MIN_CHUNK_SECS" ]; then
                 chunk_count=$((chunk_count + 1))
 
-                # Include overlap from previous chunk for context (except first chunk)
-                local overlap_bytes=0
-                if [ "$chunk_count" -gt 1 ]; then
-                    overlap_bytes=$((OVERLAP_SECS * BYTES_PER_SEC))
-                fi
-                local extract_offset=$((last_byte_offset - overlap_bytes))
-                local chunk_bytes=$((new_secs * BYTES_PER_SEC + overlap_bytes))
-
-                local raw_file="/tmp/chunk_raw_${TIMESTAMP}_${chunk_count}.pcm"
                 local chunk_file="/tmp/chunk_${TIMESTAMP}_${chunk_count}.wav"
 
-                # Extract raw PCM bytes (bypass incomplete WAV header)
-                dd if="$recording_file" of="$raw_file" bs=1 skip="$extract_offset" count="$chunk_bytes" 2>/dev/null
+                # Include overlap from previous chunk for context (except first chunk)
+                local trim_start=$last_secs
+                if [ "$chunk_count" -gt 1 ] && [ "$trim_start" -ge "$OVERLAP_SECS" ]; then
+                    trim_start=$((trim_start - OVERLAP_SECS))
+                fi
+                local trim_duration=$((current_secs - trim_start))
 
-                # Convert raw PCM to valid WAV for whisper-cli
-                sox -t raw -r 16000 -c 1 -b 16 -e signed-integer -L "$raw_file" "$chunk_file" 2>/dev/null
-                rm -f "$raw_file"
+                # Read recording as raw PCM (bypasses unfinalised WAV header)
+                # and extract only the time range we need
+                sox -t raw -r 16000 -c 1 -b 16 -e signed-integer -L \
+                    "$recording_file" "$chunk_file" \
+                    trim "$trim_start" "$trim_duration" 2>/dev/null
 
                 if [ -f "$chunk_file" ] && [ -s "$chunk_file" ]; then
                     local chunk_transcript="/tmp/chunk_transcript_${TIMESTAMP}_${chunk_count}"
@@ -241,7 +239,7 @@ original_live_transcription() {
                         new_text=$(cat "${chunk_transcript}.txt" | sed '/^$/d')
                         # Filter out Whisper hallucinations on silence/noise
                         local filtered_text
-                        filtered_text=$(echo "$new_text" | grep -viE '^\[.*\]$|^\*.*\*$|^[[:space:]]*$' || true)
+                        filtered_text=$(echo "$new_text" | grep -viE '^\s*[\[\(\*].*[\]\)\*]\s*$|^[[:space:]]*$' || true)
                         if [ -n "$filtered_text" ]; then
                             echo "$filtered_text" >> "$running_transcript"
                             print_color "$GREEN" "$filtered_text" >&2
@@ -251,8 +249,7 @@ original_live_transcription() {
                     rm -f "$chunk_file" "${chunk_transcript}.txt" 2>/dev/null
                 fi
 
-                # Advance position (without overlap — overlap is re-read next time)
-                last_byte_offset=$((last_byte_offset + new_secs * BYTES_PER_SEC))
+                last_secs=$current_secs
             fi
         fi
         sleep 2
