@@ -6,6 +6,7 @@ Local-first audio/video transcription tool powered by [whisper-cli](https://gith
 
 - **Live microphone transcription** with incremental chunk-based output (text appears every ~5 seconds while you speak)
 - **YouTube download + transcribe** — paste a URL, get a transcript
+- **YouTube fallback download strategies** — retries multiple YouTube client profiles to reduce 403 failures
 - **File transcription** — supports Zoom recordings, WhatsApp audio, and any audio/video file
 - **Multiple output formats** — txt, srt, vtt, json
 - **Multi-language support** — English, French, auto-detect
@@ -53,7 +54,23 @@ This launches an interactive menu with these options:
 5. **WhatsApp Audio** — Transcribe a WhatsApp voice message
 6. **Other File** — Transcribe any audio/video file
 
-Transcripts are saved to `~/Desktop/Transcripts/`. Audio downloads are saved to `~/whisper-downloads/` and auto-cleaned after 7 days.
+Transcripts are saved to `~/Documents/Transcripts/`. Audio downloads are saved to `~/whisper-downloads/` and auto-cleaned after 7 days.
+
+## YouTube Download Reliability
+
+When YouTube changes delivery behavior (for example SABR-related client restrictions), a single `yt-dlp` strategy can fail with `HTTP Error 403: Forbidden`.
+
+This project now retries YouTube downloads using multiple fallback profiles:
+
+- Alternative audio/video format selectors
+- Multiple YouTube player clients (`android`, `ios`, `web`)
+- Conservative transfer settings (`--retries`, `--fragment-retries`, `--force-ipv4`)
+
+If you still hit 403 errors, run:
+
+```bash
+yt-dlp -U
+```
 
 ## How Live Transcription Works
 

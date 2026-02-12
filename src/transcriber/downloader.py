@@ -2,7 +2,7 @@
 
 import tempfile
 from pathlib import Path
-from typing import Optional
+from typing import Any, Dict, List, Optional
 
 try:
     import yt_dlp
@@ -45,8 +45,8 @@ class YouTubeDownloader:
         Returns:
             Path to downloaded audio file
         """
-        # Configure yt-dlp options
-        ydl_opts = {
+        # Common yt-dlp options shared across retry strategies.
+        base_opts = {
             "format": f"{quality}/best[height<=480]/best",
             "extract_audio": True,
             "audio_format": format,
@@ -62,29 +62,29 @@ class YouTubeDownloader:
                 }
             ],
         }
+        errors: List[str] = []
+        for strategy in self._download_strategies(quality):
+            ydl_opts = dict(base_opts)
+            ydl_opts.update(strategy)
 
-        # Download the video
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            filename = ydl.prepare_filename(info)
+            try:
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    info = ydl.extract_info(url, download=True)
+                    filename = ydl.prepare_filename(info)
+                return self._resolve_audio_path(
+                    filename=filename,
+                    input_ext=info.get("ext", ""),
+                    output_format=format,
+                )
+            except Exception as exc:  # pragma: no cover - passthrough from yt-dlp
+                errors.append(str(exc))
 
-            # Convert to audio format if needed
-            if info.get("ext") != format:
-                audio_filename = filename.rsplit(".", 1)[0] + f".{format}"
-            else:
-                audio_filename = filename
-
-        audio_path = Path(audio_filename)
-        if not audio_path.exists():
-            # Fallback: look for the file with the expected extension
-            expected_path = Path(filename.rsplit(".", 1)[0] + f".{format}")
-            if expected_path.exists():
-                audio_path = expected_path
-
-        if not audio_path.exists():
-            raise FileNotFoundError(f"Downloaded audio file not found: {audio_path}")
-
-        return audio_path
+        last_error = errors[-1] if errors else "unknown yt-dlp failure"
+        raise RuntimeError(
+            "Failed to download YouTube audio after multiple strategies. "
+            "Update yt-dlp (`yt-dlp -U`) and retry. "
+            f"Last error: {last_error}"
+        )
 
     def get_video_info(self, url: str) -> dict:
         """Get video information without downloading.
@@ -99,6 +99,11 @@ class YouTubeDownloader:
             "quiet": True,
             "no_warnings": True,
             "extract_flat": False,
+            "extractor_args": {
+                "youtube": {
+                    "player_client": ["android", "ios", "web"],
+                }
+            },
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -115,7 +120,67 @@ class YouTubeDownloader:
             "listformats": True,
             "quiet": True,
             "no_warnings": True,
+            "extractor_args": {
+                "youtube": {
+                    "player_client": ["android", "ios", "web"],
+                }
+            },
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.extract_info(url, download=False)
+
+    def _download_strategies(self, quality: str) -> List[Dict[str, Any]]:
+        """Return prioritized yt-dlp download strategies for flaky YouTube clients."""
+        return [
+            {
+                "format": f"{quality}/bestaudio[ext=m4a]/bestaudio/best",
+                "extractor_args": {
+                    "youtube": {
+                        "player_client": ["android", "ios", "web"],
+                    }
+                },
+            },
+            {
+                "format": "bestaudio[ext=m4a]/bestaudio/best",
+                "extractor_args": {
+                    "youtube": {
+                        "player_client": ["android", "ios", "web"],
+                    }
+                },
+            },
+            {
+                "format": "140/bestaudio[ext=m4a]/bestaudio/best",
+                "extractor_args": {
+                    "youtube": {
+                        "player_client": ["android", "web"],
+                    }
+                },
+            },
+            {
+                "format": "bestaudio/best",
+            },
+        ]
+
+    def _resolve_audio_path(
+        self,
+        filename: str,
+        input_ext: str,
+        output_format: str,
+    ) -> Path:
+        """Resolve audio output path after post-processing."""
+        if input_ext != output_format:
+            audio_filename = filename.rsplit(".", 1)[0] + f".{output_format}"
+        else:
+            audio_filename = filename
+
+        audio_path = Path(audio_filename)
+        if not audio_path.exists():
+            expected_path = Path(filename.rsplit(".", 1)[0] + f".{output_format}")
+            if expected_path.exists():
+                audio_path = expected_path
+
+        if not audio_path.exists():
+            raise FileNotFoundError(f"Downloaded audio file not found: {audio_path}")
+
+        return audio_path

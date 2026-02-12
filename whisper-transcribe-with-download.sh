@@ -123,8 +123,100 @@ cleanup_old_audio() {
     print_color "$BLUE" "🧹 Cleaning up audio files older than 7 days..." >&2
     find "$AUDIO_DOWNLOAD_DIR" -name "*_live_recording.wav" -type f -mtime +7 -delete 2>/dev/null
     find "$AUDIO_DOWNLOAD_DIR" -name "*_audio.mp3" -type f -mtime +7 -delete 2>/dev/null
-    find "$AUDIO_DOWNLOAD_DIR" -name "*_video.mp4" -type f -mtime +7 -delete 2>/dev/null
+    find "$AUDIO_DOWNLOAD_DIR" -name "*_video.*" -type f -mtime +7 -delete 2>/dev/null
     print_color "$GREEN" "✅ Cleanup completed" >&2
+}
+
+download_youtube_audio_with_fallback() {
+    local youtube_url=$1
+    local output_template=$2
+
+    local -a formats=(
+        "bestaudio[ext=m4a]/bestaudio/best"
+        "140/bestaudio[ext=m4a]/bestaudio/best"
+        "bestaudio/best"
+    )
+    local -a clients=(
+        "youtube:player_client=android,ios,web"
+        "youtube:player_client=android,web"
+        ""
+    )
+
+    for i in "${!formats[@]}"; do
+        local format_selector="${formats[$i]}"
+        local extractor_args="${clients[$i]}"
+
+        print_color "$YELLOW" "Trying download profile $((i+1))/${#formats[@]}..." >&2
+        local -a cmd=(
+            yt-dlp
+            --no-playlist
+            --retries 10
+            --fragment-retries 10
+            --force-ipv4
+            --concurrent-fragments 1
+            -f "$format_selector"
+            --extract-audio
+            --audio-format mp3
+            --audio-quality 0
+            -o "$output_template"
+        )
+
+        if [ -n "$extractor_args" ]; then
+            cmd+=(--extractor-args "$extractor_args")
+        fi
+        cmd+=("$youtube_url")
+
+        "${cmd[@]}" >&2
+        if [ $? -eq 0 ]; then
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+download_youtube_video_with_fallback() {
+    local youtube_url=$1
+    local output_template=$2
+
+    local -a formats=(
+        "bv*[height<=720]+ba[ext=m4a]/b[height<=720]/best[height<=720]"
+        "best[height<=720]/best"
+    )
+    local -a clients=(
+        "youtube:player_client=android,ios,web"
+        ""
+    )
+
+    for i in "${!formats[@]}"; do
+        local format_selector="${formats[$i]}"
+        local extractor_args="${clients[$i]}"
+
+        print_color "$YELLOW" "Trying video profile $((i+1))/${#formats[@]}..." >&2
+        local -a cmd=(
+            yt-dlp
+            --no-playlist
+            --retries 10
+            --fragment-retries 10
+            --force-ipv4
+            --concurrent-fragments 1
+            --merge-output-format mp4
+            -f "$format_selector"
+            -o "$output_template"
+        )
+
+        if [ -n "$extractor_args" ]; then
+            cmd+=(--extractor-args "$extractor_args")
+        fi
+        cmd+=("$youtube_url")
+
+        "${cmd[@]}" >&2
+        if [ $? -eq 0 ]; then
+            return 0
+        fi
+    done
+
+    return 1
 }
 
 # Function for ORIGINAL live transcription
@@ -296,7 +388,7 @@ case $choice in
     2) # YouTube Video + Transcript
         read -p "Enter YouTube URL: " youtube_url
         print_color "$BLUE" "\n📥 Downloading YouTube audio..."
-        yt-dlp -f "bestaudio/best" --extract-audio --audio-format mp3 --audio-quality 0 -o "$AUDIO_DOWNLOAD_DIR/${TIMESTAMP}_audio.%(ext)s" "$youtube_url" >&2
+        download_youtube_audio_with_fallback "$youtube_url" "$AUDIO_DOWNLOAD_DIR/${TIMESTAMP}_audio.%(ext)s"
         if [ $? -eq 0 ]; then
             audio_file=$(find "$AUDIO_DOWNLOAD_DIR" -name "${TIMESTAMP}_audio.mp3" -type f -print -quit)
             if [ -n "$audio_file" ]; then
@@ -310,12 +402,15 @@ case $choice in
                     print_color "$GREEN" "✅ Transcript saved: $TRANSCRIPT_DIR/${TIMESTAMP}_youtube.txt"
                 fi
             fi
+        else
+            print_color "$RED" "❌ YouTube audio download failed after all fallback attempts."
+            print_color "$YELLOW" "Tip: update yt-dlp with: yt-dlp -U" >&2
         fi
         ;;
     3) # YouTube Video Download Only
         read -p "Enter YouTube URL: " youtube_url
         print_color "$BLUE" "\n📥 Downloading YouTube video..."
-        yt-dlp -f "best[height<=720]" -o "$AUDIO_DOWNLOAD_DIR/${TIMESTAMP}_video.%(ext)s" "$youtube_url" >&2
+        download_youtube_video_with_fallback "$youtube_url" "$AUDIO_DOWNLOAD_DIR/${TIMESTAMP}_video.%(ext)s"
         if [ $? -eq 0 ]; then
             video_file=$(find "$AUDIO_DOWNLOAD_DIR" -name "${TIMESTAMP}_video.*" -type f -print -quit)
             if [ -n "$video_file" ]; then
@@ -326,7 +421,8 @@ case $choice in
                 print_color "$RED" "❌ Video download failed!"
             fi
         else
-            print_color "$RED" "❌ Video download failed!"
+            print_color "$RED" "❌ Video download failed after all fallback attempts!"
+            print_color "$YELLOW" "Tip: update yt-dlp with: yt-dlp -U" >&2
         fi
         ;;
     4) # Zoom Recording
