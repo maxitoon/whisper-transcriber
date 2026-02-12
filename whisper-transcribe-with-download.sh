@@ -5,7 +5,7 @@
 
 MODELS_DIR="$HOME/whisper-models"
 TIMESTAMP=$(date +%Y%m%d%H%M%S)
-TRANSCRIPT_DIR="$HOME/Desktop/Transcripts"
+TRANSCRIPT_DIR="$HOME/Documents/Transcripts"
 AUDIO_DOWNLOAD_DIR="$HOME/whisper-downloads"
 
 # Create necessary directories
