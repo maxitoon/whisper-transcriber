@@ -131,42 +131,49 @@ cleanup_old_audio() {
 original_live_transcription() {
     local model_file=$1
     local language=$2
-    local recording_file="$AUDIO_DOWNLOAD_DIR/${TIMESTAMP}_live_recording.wav"
+    local recording_wav="$AUDIO_DOWNLOAD_DIR/${TIMESTAMP}_live_recording.wav"
+    local recording_raw="/tmp/live_recording_${TIMESTAMP}.raw"
     local transcript_file="$TRANSCRIPT_DIR/${TIMESTAMP}_live_transcript"
-    
+
     print_color "$CYAN" "🎙️  ORIGINAL Live Transcription Setup"
     echo "" >&2
-    print_color "$YELLOW" "Recording will be saved to: $recording_file" >&2
+    print_color "$YELLOW" "Recording will be saved to: $recording_wav" >&2
     print_color "$YELLOW" "Audio file will be kept for 7 days" >&2
     print_color "$YELLOW" "Live transcript will appear below every ~10 seconds:" >&2
-    print_color "$YELLOW" "Final transcript will be saved to: $transcript_file" >&2
+    print_color "$YELLOW" "Final transcript will be saved to: ${transcript_file}.txt" >&2
     echo "" >&2
     print_color "$BLUE" "Press Ctrl+C to stop recording and save transcript" >&2
     echo "" >&2
-    
-    # Start recording in background
+
+    # Record as raw PCM (no WAV header) so we can reliably read during recording.
+    # Format: 16kHz, mono, 16-bit signed integer, little-endian = 32000 bytes/sec
     print_color "$GREEN" "🔴 Recording started... (Press Ctrl+C to stop)" >&2
-    rec -r 16000 -c 1 "$recording_file" >/dev/null 2>&1 &
+    rec -t raw -r 16000 -c 1 -b 16 -e signed-integer "$recording_raw" >/dev/null 2>&1 &
     local rec_pid=$!
-    
+
     # Show live transcription area
-    print_color "$CYAN" "📝 LIVE TRANSCRIPTION (appears in real-time):" >&2
+    print_color "$CYAN" "📝 LIVE TRANSCRIPTION:" >&2
     print_color "$CYAN" "════════════════════════════════════════════════════" >&2
-    
+
     # Function to handle cleanup on exit
     cleanup() {
         print_color "$YELLOW" "\n🛑 Stopping recording..." >&2
         kill $rec_pid 2>/dev/null
         wait $rec_pid 2>/dev/null
-        
-        if [ -f "$recording_file" ] && [ -s "$recording_file" ]; then
-            print_color "$GREEN" "✅ Recording saved: $recording_file" >&2
+
+        if [ -f "$recording_raw" ] && [ -s "$recording_raw" ]; then
+            # Convert raw PCM to WAV for permanent storage and final transcription
+            sox -t raw -r 16000 -c 1 -b 16 -e signed-integer -L \
+                "$recording_raw" "$recording_wav" 2>/dev/null
+            rm -f "$recording_raw"
+
+            print_color "$GREEN" "✅ Recording saved: $recording_wav" >&2
             print_color "$YELLOW" "📁 Audio file will be kept for 7 days" >&2
-            
+
             # Final transcription of the complete recording
             print_color "$BLUE" "🎯 Performing final transcription..." >&2
-            whisper-cli -m "$model_file" -f "$recording_file" -l "$language" -otxt -of "$transcript_file" -pp -nt >&2
-            
+            whisper-cli -m "$model_file" -f "$recording_wav" -l "$language" -otxt -of "$transcript_file" -pp -nt >&2
+
             if [ $? -eq 0 ] && [ -f "${transcript_file}.txt" ]; then
                 print_color "$GREEN" "✅ Final transcript saved: ${transcript_file}.txt" >&2
                 print_color "$YELLOW" "📝 Final transcript preview:" >&2
@@ -179,22 +186,21 @@ original_live_transcription() {
         else
             print_color "$RED" "❌ No recording was made!" >&2
         fi
-        
-        # Clean up old audio files
+
+        # Clean up
+        rm -f "$recording_raw" 2>/dev/null
         cleanup_old_audio
-        
+
         exit 0
     }
-    
+
     # Set up signal handler for cleanup
     trap cleanup SIGINT SIGTERM
-    
+
     # Incremental chunk-based live transcription
-    # rec writes 16kHz mono 16-bit PCM = 32000 bytes/sec.
-    # The WAV header is NOT finalized until rec stops, so we:
-    #   1. Estimate duration from file size
-    #   2. Tell sox to read the file as raw PCM (-t raw), bypassing the broken header
-    #   3. Use sox trim to extract time ranges directly
+    # Recording is raw PCM: 16kHz, mono, 16-bit = 32000 bytes/sec, no header.
+    # File size directly equals audio bytes, so duration = size / 32000.
+    # sox reads the raw file and trims out time ranges into proper WAV chunks.
     local BYTES_PER_SEC=32000
     local MIN_CHUNK_SECS=10
     local OVERLAP_SECS=2
@@ -204,9 +210,9 @@ original_live_transcription() {
     touch "$running_transcript"
 
     while kill -0 $rec_pid 2>/dev/null; do
-        if [ -f "$recording_file" ]; then
+        if [ -f "$recording_raw" ]; then
             local current_size
-            current_size=$(stat -f%z "$recording_file" 2>/dev/null || echo "0")
+            current_size=$(stat -f%z "$recording_raw" 2>/dev/null || echo "0")
             local current_secs=$((current_size / BYTES_PER_SEC))
             local new_secs=$((current_secs - last_secs))
 
@@ -222,16 +228,14 @@ original_live_transcription() {
                 fi
                 local trim_duration=$((current_secs - trim_start))
 
-                # Read recording as raw PCM (bypasses unfinalised WAV header)
-                # and extract only the time range we need
+                # Extract time range from raw PCM → proper WAV for whisper-cli
                 sox -t raw -r 16000 -c 1 -b 16 -e signed-integer -L \
-                    "$recording_file" "$chunk_file" \
+                    "$recording_raw" "$chunk_file" \
                     trim "$trim_start" "$trim_duration" 2>/dev/null
 
                 if [ -f "$chunk_file" ] && [ -s "$chunk_file" ]; then
                     local chunk_transcript="/tmp/chunk_transcript_${TIMESTAMP}_${chunk_count}"
 
-                    # Transcribe the chunk
                     whisper-cli -m "$model_file" -f "$chunk_file" -l "$language" -otxt -of "$chunk_transcript" -pp -nt >/dev/null 2>&1
 
                     if [ -f "${chunk_transcript}.txt" ] && [ -s "${chunk_transcript}.txt" ]; then
@@ -239,7 +243,7 @@ original_live_transcription() {
                         new_text=$(cat "${chunk_transcript}.txt" | sed '/^$/d')
                         # Filter out Whisper hallucinations on silence/noise
                         local filtered_text
-                        filtered_text=$(echo "$new_text" | grep -viE '^\s*[\[\(\*].*[\]\)\*]\s*$|^[[:space:]]*$' || true)
+                        filtered_text=$(echo "$new_text" | grep -viE '^[[:space:]]*[][(*].*[])*][[:space:]]*$|^[[:space:]]*$' || true)
                         if [ -n "$filtered_text" ]; then
                             echo "$filtered_text" >> "$running_transcript"
                             print_color "$GREEN" "$filtered_text" >&2
@@ -257,7 +261,7 @@ original_live_transcription() {
 
     # Clean up running transcript temp file
     rm -f "$running_transcript" 2>/dev/null
-    
+
     # Wait for recording to complete
     wait $rec_pid
 }
