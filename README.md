@@ -1,185 +1,112 @@
 # Whisper Transcriber
 
-A local-first transcription tool using OpenAI Whisper with YouTube download capabilities.
+Local-first audio/video transcription tool powered by [whisper-cli](https://github.com/ggerganov/whisper.cpp) (whisper.cpp). Features an interactive shell script for live microphone transcription, YouTube downloads, and file-based transcription, plus a Python CLI for programmatic use.
 
 ## Features
 
-- 🎵 **YouTube Audio Download**: Extract audio from YouTube videos
-- 🎙️ **High-Quality Transcription**: Powered by OpenAI Whisper
-- 📁 **Local Processing**: Everything runs on your machine
-- 🔧 **Multiple Scripts**: Various configurations for different use cases
+- **Live microphone transcription** with incremental chunk-based output (text appears every ~5 seconds while you speak)
+- **YouTube download + transcribe** — paste a URL, get a transcript
+- **File transcription** — supports Zoom recordings, WhatsApp audio, and any audio/video file
+- **Multiple output formats** — txt, srt, vtt, json
+- **Multi-language support** — English, French, auto-detect
+- **Multiple Whisper models** — base, small, medium, large
+
+## Prerequisites
+
+Install the following system dependencies:
+
+```bash
+# macOS (Homebrew)
+brew install whisper-cpp ffmpeg sox yt-dlp
+
+# The whisper-cli binary must be available in PATH
+```
+
+Download at least one Whisper model to `~/whisper-models/`:
+
+```bash
+# Example: download the base English model
+curl -L -o ~/whisper-models/ggml-base.en.bin \
+  https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin
+
+# For multi-language support, also grab small or medium:
+curl -L -o ~/whisper-models/ggml-small.bin \
+  https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin
+```
 
 ## Quick Start
 
-### Prerequisites
-
-- **whisper-cli** (command-line Whisper tool)
-- **yt-dlp** (YouTube downloader)
-- **ffmpeg** (audio processing)
-- **sox** (for live recording)
-
-### Installation
-
-**1. Install whisper-cli:**
 ```bash
-# Download from: https://github.com/ggerganov/whisper.cpp
-# Follow installation instructions for your platform
+# Interactive transcription menu
+make transcribe
+
+# Or run directly
+./whisper-transcribe-with-download.sh
 ```
 
-**2. Install system dependencies:**
+This launches an interactive menu with these options:
 
-**macOS:**
+1. **Live Recording** — Record from microphone with real-time transcription
+2. **YouTube Video** — Download and transcribe a YouTube video
+3. **YouTube Download Only** — Download video without transcription
+4. **Zoom Recording** — Transcribe a Zoom recording file
+5. **WhatsApp Audio** — Transcribe a WhatsApp voice message
+6. **Other File** — Transcribe any audio/video file
+
+Transcripts are saved to `~/Desktop/Transcripts/`. Audio downloads are saved to `~/whisper-downloads/` and auto-cleaned after 7 days.
+
+## How Live Transcription Works
+
+The live recording mode (option 1) uses incremental chunk-based transcription:
+
+1. `rec` (from sox) records audio from your microphone in the background
+2. Every 2 seconds, the script checks if at least 5 seconds of new audio is available
+3. New audio is extracted with `sox trim` and transcribed with `whisper-cli`
+4. Only the new text is displayed — no re-processing of already-transcribed audio
+5. On Ctrl+C, a final full-file transcription is performed for maximum accuracy and saved to disk
+
+## Python CLI
+
+A Python CLI is also available for programmatic use:
+
 ```bash
-brew install ffmpeg sox yt-dlp
+# Install
+pip install -e .
+
+# Transcribe a local file
+whisper-transcriber transcribe <file> --model base --format txt
+
+# Download and transcribe a YouTube video
+whisper-transcriber youtube <url> --model base --format srt
+
+# List available models
+whisper-transcriber models
 ```
 
-**Ubuntu/Debian:**
-```bash
-sudo apt install ffmpeg sox yt-dlp
-```
-
-**Windows:**
-```bash
-# Install via Chocolatey or download manually:
-choco install ffmpeg sox yt-dlp
-```
-
-**3. Download Whisper models:**
-```bash
-# The script will prompt you to download models to ~/whisper-models/
-# Download: ggml-base.en.bin, ggml-small.bin, ggml-medium.bin, ggml-large.bin
-```
-
-**4. Run transcription:**
-```bash
-# From the whisper-transcriber directory
-../whisper-transcribe-with-download.sh
-
-# Or create a convenient symlink:
-ln -s ../whisper-transcribe-with-download.sh transcribe.sh
-./transcribe.sh
-```
-
-## Usage Examples
-
-### Interactive Mode
-```bash
-# Run the main script (interactive menu)
-../whisper-transcribe-with-download.sh
-
-# Choose from options:
-# 1) 🔴 ORIGINAL Live Recording + Live Transcript
-# 2) 🎥 YouTube Video + Transcript
-# 3) 📥 YouTube Video Download Only
-# 4) 💼 Zoom Recording + Transcript
-# 5) 💬 WhatsApp Audio + Transcript
-# 6) 📁 Other Audio/Video File + Transcript
-```
-
-### YouTube Transcription
-```bash
-# The script will prompt for URL and handle download + transcription
-# Choose option 2 for "YouTube Video + Transcript"
-```
-
-### Live Transcription
-```bash
-# Records from microphone and shows real-time transcription
-# Choose option 1 for "ORIGINAL Live Recording + Live Transcript"
-```
-
-## Main Script
-
-This project uses the comprehensive `whisper-transcribe-with-download.sh` script which provides:
-
-- 🎙️ **Live transcription** with real-time text display
-- 🎥 **YouTube download + transcription** in one command
-- 📁 **Local file transcription** (Zoom, WhatsApp, audio/video files)
-- 🧹 **Automatic cleanup** of old files (7-day retention)
-
-See the [scripts documentation](docs/scripts.md) for detailed usage.
+> **Note:** The Python CLI requires `openai-whisper` and `torch` as optional dependencies. The shell script (recommended) uses `whisper-cli` instead and has no Python dependencies.
 
 ## Development
 
-The project is currently focused on the main `whisper-transcribe-with-download.sh` script. The Python modules in `src/` provide a foundation for future development.
-
 ```bash
-# Install Python dependencies (for future development)
-make dev
-
-# Run tests
-make test
-
-# Format code
-make format
-
-# Run linting
-make lint
+make dev       # Install dev dependencies + editable install
+make test      # Run pytest with coverage
+make lint      # ruff check + mypy
+make format    # black + isort
 ```
 
-## Architecture
+## Project Structure
 
-- **Main Script**: `../whisper-transcribe-with-download.sh` - Complete transcription solution
-- **Python Modules**: `src/transcriber/` - Future development framework
-- **Documentation**: Complete guides and examples
-
-See [architecture.md](docs/architecture.md) for detailed design.
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
-
-## Configuration
-
-The application uses environment variables and configuration files:
-
-- **Environment variables**: Model selection, device settings
-- **Config files**: Copy `env.example` to `.env` and customize
-- **CLI arguments**: Runtime options
-
-```bash
-cp env.example .env
-# Edit .env with your preferred settings
+```
+whisper-transcriber/
+  whisper-transcribe-with-download.sh  # Main interactive script (shell)
+  src/transcriber/
+    cli.py          # Python CLI (click-based)
+    engine.py       # Whisper engine wrapper
+    downloader.py   # YouTube downloader (yt-dlp wrapper)
+  tests/
+  Makefile
 ```
 
 ## License
 
-MIT - see [LICENSE](LICENSE) file.
-
-## Troubleshooting
-
-### Common Issues
-
-**whisper-cli not found:**
-- Download and install whisper-cli from: https://github.com/ggerganov/whisper.cpp
-- Ensure it's in your PATH or provide full path to executable
-
-**FFmpeg/Sox not found:**
-- Ensure FFmpeg and Sox are installed and in your PATH
-- On macOS: `brew install ffmpeg sox`
-- On Ubuntu: `sudo apt install ffmpeg sox`
-
-**yt-dlp not found:**
-- Install yt-dlp: `pip install yt-dlp` or `brew install yt-dlp`
-- Update regularly: `yt-dlp -U`
-
-**Whisper models missing:**
-- Download models to `~/whisper-models/` directory
-- Available models: `ggml-base.en.bin`, `ggml-small.bin`, `ggml-medium.bin`, `ggml-large.bin`
-- The script will guide you through model selection
-
-**Memory issues:**
-- Use smaller models (base, small) for limited RAM
-- Close other applications during transcription
-- Ensure adequate disk space for downloads
-
-**YouTube download fails:**
-- Check internet connection stability
-- Some videos may be region-restricted or private
-- Try different video quality settings
+MIT

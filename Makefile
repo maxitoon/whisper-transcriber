@@ -40,21 +40,20 @@ clean: ## Clean build artifacts
 
 transcribe: ## Run the main transcription script
 	@echo "🎙️  Starting Whisper Transcription..."
-	@if [ ! -f "../whisper-transcribe-with-download.sh" ]; then \
-		echo "❌ Main script not found in parent directory!"; \
+	@if [ ! -f "./whisper-transcribe-with-download.sh" ]; then \
+		echo "❌ Main script not found!"; \
 		echo ""; \
 		echo "📋 Setup Instructions:"; \
 		echo "1. Install whisper-cli: https://github.com/ggerganov/whisper.cpp"; \
 		echo "2. Install dependencies: brew install ffmpeg sox yt-dlp"; \
-		echo "3. Place whisper-transcribe-with-download.sh in the parent directory"; \
-		echo "4. Download Whisper models to ~/whisper-models/"; \
+		echo "3. Download Whisper models to ~/whisper-models/"; \
 		echo ""; \
 		echo "💡 Or run: make quick-setup"; \
 		exit 1; \
 	fi
 	@echo "Make sure whisper-cli and dependencies are installed!"
 	@echo ""
-	../whisper-transcribe-with-download.sh
+	./whisper-transcribe-with-download.sh
 
 quick-setup: ## Quick setup and run
 	@echo "🔧 Quick Setup Guide:"
