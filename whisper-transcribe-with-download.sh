@@ -138,7 +138,7 @@ original_live_transcription() {
     echo "" >&2
     print_color "$YELLOW" "Recording will be saved to: $recording_file" >&2
     print_color "$YELLOW" "Audio file will be kept for 7 days" >&2
-    print_color "$YELLOW" "Live transcript will appear below every ~5 seconds:" >&2
+    print_color "$YELLOW" "Live transcript will appear below every ~10 seconds:" >&2
     print_color "$YELLOW" "Final transcript will be saved to: $transcript_file" >&2
     echo "" >&2
     print_color "$BLUE" "Press Ctrl+C to stop recording and save transcript" >&2
@@ -195,7 +195,8 @@ original_live_transcription() {
     # duration from file size and extract raw PCM bytes directly.
     local BYTES_PER_SEC=32000
     local WAV_HEADER_SIZE=44
-    local MIN_CHUNK_SECS=5
+    local MIN_CHUNK_SECS=10
+    local OVERLAP_SECS=2
     local last_byte_offset=$WAV_HEADER_SIZE
     local chunk_count=0
     local running_transcript="/tmp/running_transcript_${TIMESTAMP}.txt"
@@ -211,13 +212,19 @@ original_live_transcription() {
             if [ "$new_secs" -ge "$MIN_CHUNK_SECS" ]; then
                 chunk_count=$((chunk_count + 1))
 
-                # Align to full seconds of audio
-                local chunk_bytes=$((new_secs * BYTES_PER_SEC))
+                # Include overlap from previous chunk for context (except first chunk)
+                local overlap_bytes=0
+                if [ "$chunk_count" -gt 1 ]; then
+                    overlap_bytes=$((OVERLAP_SECS * BYTES_PER_SEC))
+                fi
+                local extract_offset=$((last_byte_offset - overlap_bytes))
+                local chunk_bytes=$((new_secs * BYTES_PER_SEC + overlap_bytes))
+
                 local raw_file="/tmp/chunk_raw_${TIMESTAMP}_${chunk_count}.pcm"
                 local chunk_file="/tmp/chunk_${TIMESTAMP}_${chunk_count}.wav"
 
                 # Extract raw PCM bytes (bypass incomplete WAV header)
-                dd if="$recording_file" of="$raw_file" bs=1 skip="$last_byte_offset" count="$chunk_bytes" 2>/dev/null
+                dd if="$recording_file" of="$raw_file" bs=1 skip="$extract_offset" count="$chunk_bytes" 2>/dev/null
 
                 # Convert raw PCM to valid WAV for whisper-cli
                 sox -t raw -r 16000 -c 1 -b 16 -e signed-integer -L "$raw_file" "$chunk_file" 2>/dev/null
@@ -226,22 +233,26 @@ original_live_transcription() {
                 if [ -f "$chunk_file" ] && [ -s "$chunk_file" ]; then
                     local chunk_transcript="/tmp/chunk_transcript_${TIMESTAMP}_${chunk_count}"
 
-                    # Transcribe only the new chunk
+                    # Transcribe the chunk
                     whisper-cli -m "$model_file" -f "$chunk_file" -l "$language" -otxt -of "$chunk_transcript" -pp -nt >/dev/null 2>&1
 
                     if [ -f "${chunk_transcript}.txt" ] && [ -s "${chunk_transcript}.txt" ]; then
                         local new_text
                         new_text=$(cat "${chunk_transcript}.txt" | sed '/^$/d')
-                        if [ -n "$new_text" ] && [ "$new_text" != " " ]; then
-                            echo "$new_text" >> "$running_transcript"
-                            print_color "$GREEN" "$new_text" >&2
+                        # Filter out Whisper hallucinations on silence/noise
+                        local filtered_text
+                        filtered_text=$(echo "$new_text" | grep -viE '^\[.*\]$|^\*.*\*$|^[[:space:]]*$' || true)
+                        if [ -n "$filtered_text" ]; then
+                            echo "$filtered_text" >> "$running_transcript"
+                            print_color "$GREEN" "$filtered_text" >&2
                         fi
                     fi
 
                     rm -f "$chunk_file" "${chunk_transcript}.txt" 2>/dev/null
                 fi
 
-                last_byte_offset=$((last_byte_offset + chunk_bytes))
+                # Advance position (without overlap — overlap is re-read next time)
+                last_byte_offset=$((last_byte_offset + new_secs * BYTES_PER_SEC))
             fi
         fi
         sleep 2
