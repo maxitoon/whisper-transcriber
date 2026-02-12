@@ -132,7 +132,7 @@ original_live_transcription() {
     local model_file=$1
     local language=$2
     local recording_file="$AUDIO_DOWNLOAD_DIR/${TIMESTAMP}_live_recording.wav"
-    local transcript_file="$TRANSCRIPT_DIR/${TIMESTAMP}_live_transcript.txt"
+    local transcript_file="$TRANSCRIPT_DIR/${TIMESTAMP}_live_transcript"
     
     print_color "$CYAN" "🎙️  ORIGINAL Live Transcription Setup"
     echo "" >&2
@@ -190,30 +190,38 @@ original_live_transcription() {
     trap cleanup SIGINT SIGTERM
     
     # Incremental chunk-based live transcription
-    local last_transcribed=0
-    local chunk_count=0
+    # rec writes 16kHz mono 16-bit PCM = 32000 bytes/sec
+    # WAV header is not finalized until rec stops, so we calculate
+    # duration from file size and extract raw PCM bytes directly.
+    local BYTES_PER_SEC=32000
+    local WAV_HEADER_SIZE=44
     local MIN_CHUNK_SECS=5
+    local last_byte_offset=$WAV_HEADER_SIZE
+    local chunk_count=0
     local running_transcript="/tmp/running_transcript_${TIMESTAMP}.txt"
     touch "$running_transcript"
 
     while kill -0 $rec_pid 2>/dev/null; do
-        if [ -f "$recording_file" ] && [ -s "$recording_file" ]; then
-            # Get current recording duration in seconds
-            local current_duration
-            current_duration=$(soxi -D "$recording_file" 2>/dev/null || echo "0")
-            # Convert to integer for comparison
-            local current_int=${current_duration%.*}
-            local last_int=${last_transcribed%.*}
-            current_int=${current_int:-0}
-            last_int=${last_int:-0}
-            local new_audio=$((current_int - last_int))
+        if [ -f "$recording_file" ]; then
+            local current_size
+            current_size=$(stat -f%z "$recording_file" 2>/dev/null || echo "0")
+            local new_bytes=$((current_size - last_byte_offset))
+            local new_secs=$((new_bytes / BYTES_PER_SEC))
 
-            if [ "$new_audio" -ge "$MIN_CHUNK_SECS" ]; then
+            if [ "$new_secs" -ge "$MIN_CHUNK_SECS" ]; then
                 chunk_count=$((chunk_count + 1))
 
-                # Extract only the new audio chunk
+                # Align to full seconds of audio
+                local chunk_bytes=$((new_secs * BYTES_PER_SEC))
+                local raw_file="/tmp/chunk_raw_${TIMESTAMP}_${chunk_count}.pcm"
                 local chunk_file="/tmp/chunk_${TIMESTAMP}_${chunk_count}.wav"
-                sox "$recording_file" "$chunk_file" trim "$last_transcribed" 2>/dev/null
+
+                # Extract raw PCM bytes (bypass incomplete WAV header)
+                dd if="$recording_file" of="$raw_file" bs=1 skip="$last_byte_offset" count="$chunk_bytes" 2>/dev/null
+
+                # Convert raw PCM to valid WAV for whisper-cli
+                sox -t raw -r 16000 -c 1 -b 16 -e signed-integer -L "$raw_file" "$chunk_file" 2>/dev/null
+                rm -f "$raw_file"
 
                 if [ -f "$chunk_file" ] && [ -s "$chunk_file" ]; then
                     local chunk_transcript="/tmp/chunk_transcript_${TIMESTAMP}_${chunk_count}"
@@ -225,18 +233,15 @@ original_live_transcription() {
                         local new_text
                         new_text=$(cat "${chunk_transcript}.txt" | sed '/^$/d')
                         if [ -n "$new_text" ] && [ "$new_text" != " " ]; then
-                            # Append to running transcript and display
                             echo "$new_text" >> "$running_transcript"
                             print_color "$GREEN" "$new_text" >&2
                         fi
                     fi
 
-                    # Clean up chunk files
                     rm -f "$chunk_file" "${chunk_transcript}.txt" 2>/dev/null
                 fi
 
-                # Update position to current duration
-                last_transcribed=$current_duration
+                last_byte_offset=$((last_byte_offset + chunk_bytes))
             fi
         fi
         sleep 2
