@@ -3,6 +3,36 @@
 # Enhanced Whisper Transcription Script with YouTube Download Option
 # Shows live transcription text appearing in real-time as you speak
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Prefer a repo-local yt-dlp (kept up-to-date via Python deps) if available, but allow override.
+# This avoids common 403 failures caused by an outdated system yt-dlp binary.
+#
+# NOTE: Some cloud-sync tools strip executable bits inside virtualenvs; if the yt-dlp entrypoint exists
+# but isn't executable, we fall back to running it via its shebang interpreter.
+YTDLP_BIN="${YTDLP_BIN:-}"
+YTDLP_CMD=()
+if [ -n "$YTDLP_BIN" ]; then
+    YTDLP_CMD=("$YTDLP_BIN")
+else
+    VENV_YTDLP="$SCRIPT_DIR/.venv/bin/yt-dlp"
+    if [ -x "$VENV_YTDLP" ]; then
+        YTDLP_CMD=("$VENV_YTDLP")
+    elif [ -f "$VENV_YTDLP" ]; then
+        ytdlp_shebang="$(head -n 1 "$VENV_YTDLP" 2>/dev/null || true)"
+        if [[ "$ytdlp_shebang" == \#!* ]]; then
+            ytdlp_interp="${ytdlp_shebang#\#!}"
+            if [ -x "$ytdlp_interp" ]; then
+                YTDLP_CMD=("$ytdlp_interp" "$VENV_YTDLP")
+            fi
+        fi
+    fi
+
+    if [ ${#YTDLP_CMD[@]} -eq 0 ]; then
+        YTDLP_CMD=("yt-dlp")
+    fi
+fi
+
 MODELS_DIR="$HOME/whisper-models"
 TIMESTAMP=$(date +%Y%m%d%H%M%S)
 TRANSCRIPT_DIR="$HOME/Documents/Transcripts"
@@ -118,6 +148,43 @@ select_language() {
     esac
 }
 
+# Normalize input audio/video to 16kHz mono WAV via ffmpeg, then run whisper-cli.
+# whisper-cli only accepts WAV; without this, formats like .opus (WhatsApp) fail
+# silently — whisper-cli prints "failed to read audio data as wav" but exits 0,
+# so callers must verify the output file actually landed.
+# Args: 1=input file, 2=model file, 3=language, 4=output base path (no extension)
+run_whisper_transcription() {
+    local input=$1
+    local model=$2
+    local language=$3
+    local output_base=$4
+    local tmp_wav="/tmp/whisper_input_${TIMESTAMP}_$$.wav"
+
+    if ! command -v ffmpeg >/dev/null 2>&1; then
+        print_color "$RED" "❌ ffmpeg not found — required to normalize audio for whisper-cli." >&2
+        print_color "$YELLOW" "   Install with: brew install ffmpeg" >&2
+        return 1
+    fi
+
+    print_color "$BLUE" "🔄 Normalizing audio (16kHz mono WAV) via ffmpeg..." >&2
+    if ! ffmpeg -y -i "$input" -ar 16000 -ac 1 -c:a pcm_s16le "$tmp_wav" </dev/null >/dev/null 2>&1; then
+        print_color "$RED" "❌ ffmpeg failed to convert: $input" >&2
+        rm -f "$tmp_wav"
+        return 1
+    fi
+
+    whisper-cli -m "$model" -f "$tmp_wav" -l "$language" -otxt -of "$output_base" -pp -nt >&2
+    local rc=$?
+    rm -f "$tmp_wav"
+
+    if [ "$rc" -ne 0 ] || [ ! -s "${output_base}.txt" ]; then
+        print_color "$RED" "❌ Transcription failed — no transcript written." >&2
+        return 1
+    fi
+
+    return 0
+}
+
 # Function to clean up old audio files (older than 7 days)
 cleanup_old_audio() {
     print_color "$BLUE" "🧹 Cleaning up audio files older than 7 days..." >&2
@@ -148,7 +215,7 @@ download_youtube_audio_with_fallback() {
 
         print_color "$YELLOW" "Trying download profile $((i+1))/${#formats[@]}..." >&2
         local -a cmd=(
-            yt-dlp
+            "${YTDLP_CMD[@]}"
             --no-playlist
             --retries 10
             --fragment-retries 10
@@ -194,7 +261,7 @@ download_youtube_video_with_fallback() {
 
         print_color "$YELLOW" "Trying video profile $((i+1))/${#formats[@]}..." >&2
         local -a cmd=(
-            yt-dlp
+            "${YTDLP_CMD[@]}"
             --no-playlist
             --retries 10
             --fragment-retries 10
@@ -364,6 +431,16 @@ print_header
 # Clean up old audio files at start
 cleanup_old_audio
 
+# Surface which yt-dlp binary is being used (common source of 403 issues if outdated).
+ytdlp_display="${YTDLP_CMD[*]}"
+ytdlp_version=$("${YTDLP_CMD[@]}" --version 2>/dev/null || true)
+if [ -n "$ytdlp_version" ]; then
+    print_color "$BLUE" "🔧 Using yt-dlp: $ytdlp_display (v$ytdlp_version)" >&2
+else
+    print_color "$YELLOW" "⚠️  yt-dlp not found or not runnable: $ytdlp_display" >&2
+    print_color "$YELLOW" "Install with: brew install yt-dlp  (or: python3 -m pip install -U yt-dlp)" >&2
+fi
+
 print_color "$YELLOW" "Select Option:"
 echo "" >&2
 echo "  🎙️  LIVE TRANSCRIPTION OPTIONS:" >&2
@@ -397,14 +474,13 @@ case $choice in
                 MODEL_FILE=$(select_available_model)
                 LANGUAGE=$(select_language)
                 print_color "$BLUE" "\n🎯 Transcribing..."
-                whisper-cli -m "$MODEL_FILE" -f "$audio_file" -l "$LANGUAGE" -otxt -of "$TRANSCRIPT_DIR/${TIMESTAMP}_youtube" -pp -nt >&2
-                if [ $? -eq 0 ]; then
+                if run_whisper_transcription "$audio_file" "$MODEL_FILE" "$LANGUAGE" "$TRANSCRIPT_DIR/${TIMESTAMP}_youtube"; then
                     print_color "$GREEN" "✅ Transcript saved: $TRANSCRIPT_DIR/${TIMESTAMP}_youtube.txt"
                 fi
             fi
         else
             print_color "$RED" "❌ YouTube audio download failed after all fallback attempts."
-            print_color "$YELLOW" "Tip: update yt-dlp with: yt-dlp -U" >&2
+            print_color "$YELLOW" "Tip: update yt-dlp: python3 -m pip install -U yt-dlp  (or: brew upgrade yt-dlp)" >&2
         fi
         ;;
     3) # YouTube Video Download Only
@@ -422,7 +498,7 @@ case $choice in
             fi
         else
             print_color "$RED" "❌ Video download failed after all fallback attempts!"
-            print_color "$YELLOW" "Tip: update yt-dlp with: yt-dlp -U" >&2
+            print_color "$YELLOW" "Tip: update yt-dlp: python3 -m pip install -U yt-dlp  (or: brew upgrade yt-dlp)" >&2
         fi
         ;;
     4) # Zoom Recording
@@ -437,8 +513,7 @@ case $choice in
         MODEL_FILE=$(select_available_model)
         LANGUAGE=$(select_language)
         print_color "$BLUE" "\n🎯 Transcribing..."
-        whisper-cli -m "$MODEL_FILE" -f "$zoom_file" -l "$LANGUAGE" -otxt -of "$TRANSCRIPT_DIR/${TIMESTAMP}_zoom" -pp -nt >&2
-        if [ $? -eq 0 ]; then
+        if run_whisper_transcription "$zoom_file" "$MODEL_FILE" "$LANGUAGE" "$TRANSCRIPT_DIR/${TIMESTAMP}_zoom"; then
             print_color "$GREEN" "✅ Transcript saved: $TRANSCRIPT_DIR/${TIMESTAMP}_zoom.txt"
         fi
         ;;
@@ -454,8 +529,7 @@ case $choice in
         MODEL_FILE=$(select_available_model)
         LANGUAGE=$(select_language)
         print_color "$BLUE" "\n🎯 Transcribing..."
-        whisper-cli -m "$MODEL_FILE" -f "$whatsapp_file" -l "$LANGUAGE" -otxt -of "$TRANSCRIPT_DIR/${TIMESTAMP}_whatsapp" -pp -nt >&2
-        if [ $? -eq 0 ]; then
+        if run_whisper_transcription "$whatsapp_file" "$MODEL_FILE" "$LANGUAGE" "$TRANSCRIPT_DIR/${TIMESTAMP}_whatsapp"; then
             print_color "$GREEN" "✅ Transcript saved: $TRANSCRIPT_DIR/${TIMESTAMP}_whatsapp.txt"
         fi
         ;;
@@ -471,8 +545,7 @@ case $choice in
         MODEL_FILE=$(select_available_model)
         LANGUAGE=$(select_language)
         print_color "$BLUE" "\n🎯 Transcribing..."
-        whisper-cli -m "$MODEL_FILE" -f "$local_file" -l "$LANGUAGE" -otxt -of "$TRANSCRIPT_DIR/${TIMESTAMP}_local" -pp -nt >&2
-        if [ $? -eq 0 ]; then
+        if run_whisper_transcription "$local_file" "$MODEL_FILE" "$LANGUAGE" "$TRANSCRIPT_DIR/${TIMESTAMP}_local"; then
             print_color "$GREEN" "✅ Transcript saved: $TRANSCRIPT_DIR/${TIMESTAMP}_local.txt"
         fi
         ;;
