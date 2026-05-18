@@ -3,7 +3,6 @@
 from unittest.mock import Mock, patch
 
 import pytest
-
 from transcriber.engine import TranscriptionEngine, WHISPER_AVAILABLE
 
 
