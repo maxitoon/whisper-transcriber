@@ -36,7 +36,9 @@ def main() -> None:
 @click.option(
     "--model",
     default="base",
-    type=click.Choice(["tiny", "base", "small", "medium", "large", "large-v2", "large-v3"]),
+    type=click.Choice(
+        ["tiny", "base", "small", "medium", "large", "large-v2", "large-v3"]
+    ),
     help="Whisper model size (default: base)",
 )
 @click.option(
@@ -94,6 +96,7 @@ def transcribe(
         click.echo(f"Error: {e}", err=True)
         if verbose:
             import traceback
+
             click.echo(traceback.format_exc(), err=True)
         sys.exit(1)
 
@@ -109,7 +112,9 @@ def transcribe(
 @click.option(
     "--model",
     default="base",
-    type=click.Choice(["tiny", "base", "small", "medium", "large", "large-v2", "large-v3"]),
+    type=click.Choice(
+        ["tiny", "base", "small", "medium", "large", "large-v2", "large-v3"]
+    ),
     help="Whisper model size",
 )
 @click.option(
@@ -189,9 +194,17 @@ def main_script() -> None:
         click.echo("❌ Main script not found!", err=True)
         click.echo(f"Expected at: {script_path}", err=True)
         click.echo("\n📋 Setup Instructions:", err=True)
-        click.echo("1. Install whisper-cli: https://github.com/ggerganov/whisper.cpp", err=True)
-        click.echo("2. Install dependencies: pip install yt-dlp && brew install ffmpeg sox", err=True)
-        click.echo("3. Place whisper-transcribe-with-download.sh in the parent directory", err=True)
+        click.echo(
+            "1. Install whisper-cli: https://github.com/ggerganov/whisper.cpp", err=True
+        )
+        click.echo(
+            "2. Install dependencies: pip install yt-dlp && brew install ffmpeg sox",
+            err=True,
+        )
+        click.echo(
+            "3. Place whisper-transcribe-with-download.sh in the parent directory",
+            err=True,
+        )
         click.echo("4. Download Whisper models to ~/whisper-models/", err=True)
         click.echo("\n💡 Or run: make quick-setup", err=True)
         sys.exit(1)

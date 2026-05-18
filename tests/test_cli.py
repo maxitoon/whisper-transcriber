@@ -72,7 +72,9 @@ class TestCLI:
         """Test youtube command when yt-dlp is not available."""
         if not YT_DLP_AVAILABLE:
             runner = CliRunner()
-            result = runner.invoke(main, ["youtube", "https://youtube.com/watch?v=test"])
+            result = runner.invoke(
+                main, ["youtube", "https://youtube.com/watch?v=test"]
+            )
 
             assert result.exit_code != 0
             assert "yt-dlp is not installed" in result.output
