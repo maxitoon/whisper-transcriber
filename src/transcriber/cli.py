@@ -1,6 +1,7 @@
 """Command-line interface for Whisper Transcriber."""
 
 import os
+import subprocess
 import sys
 from pathlib import Path
 from typing import Optional
@@ -9,12 +10,12 @@ import click
 
 try:
     # Try absolute imports first (when installed as package)
-    from transcriber.engine import TranscriptionEngine
     from transcriber.downloader import YouTubeDownloader
+    from transcriber.engine import TranscriptionEngine
 except ImportError:
     # Fall back to relative imports (when running as module)
-    from .engine import TranscriptionEngine
     from .downloader import YouTubeDownloader
+    from .engine import TranscriptionEngine
 
 
 @click.group()
@@ -178,10 +179,11 @@ def models() -> None:
 @main.command()
 def main_script() -> None:
     """Run the main transcription script."""
-    import subprocess
-    import os
-
-    script_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "..", "whisper-transcribe-with-download.sh")
+    script_path = os.path.join(
+        os.path.dirname(os.path.dirname(__file__)),
+        "..",
+        "whisper-transcribe-with-download.sh",
+    )
 
     if not os.path.exists(script_path):
         click.echo("❌ Main script not found!", err=True)
@@ -200,8 +202,9 @@ def main_script() -> None:
     try:
         # Change to the script directory and run it
         script_dir = os.path.dirname(script_path)
-        result = subprocess.run(["./whisper-transcribe-with-download.sh"],
-                              cwd=script_dir, shell=True)
+        result = subprocess.run(
+            ["./whisper-transcribe-with-download.sh"], cwd=script_dir, shell=True
+        )
         sys.exit(result.returncode)
     except Exception as e:
         click.echo(f"Error running main script: {e}", err=True)
