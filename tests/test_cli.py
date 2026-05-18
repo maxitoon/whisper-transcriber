@@ -1,5 +1,8 @@
 """Tests for CLI functionality."""
 
+import os
+import tempfile
+
 import pytest
 from click.testing import CliRunner
 
@@ -45,10 +48,7 @@ class TestCLI:
         """Test transcribe command when Whisper is not available."""
         if not WHISPER_AVAILABLE:
             # Create a dummy file so we can test the whisper availability check
-            import tempfile
-            import os
-
-            with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as tmp:
+            with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp:
                 tmp_path = tmp.name
 
             try:
