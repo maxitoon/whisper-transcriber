@@ -1,9 +1,10 @@
 """Tests for transcription engine."""
 
-import pytest
 from unittest.mock import Mock, patch
 
-from transcriber.engine import TranscriptionEngine, WHISPER_AVAILABLE
+import pytest
+
+from transcriber.engine import WHISPER_AVAILABLE, TranscriptionEngine
 
 
 class TestTranscriptionEngine:
@@ -74,7 +75,7 @@ class TestTranscriptionEngine:
         assert clean_result == mock_result
 
     @pytest.mark.skipif(not WHISPER_AVAILABLE, reason="Python Whisper not installed")
-    @patch('whisper.load_model')
+    @patch("whisper.load_model")
     def test_load_model_called(self, mock_load_model):
         """Test that whisper.load_model is called during initialization."""
         mock_model = Mock()
