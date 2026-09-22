@@ -1,6 +1,7 @@
 """Command-line interface for Whisper Transcriber."""
 
 import os
+import subprocess
 import sys
 from pathlib import Path
 from typing import Optional
@@ -9,12 +10,12 @@ import click
 
 try:
     # Try absolute imports first (when installed as package)
-    from transcriber.engine import TranscriptionEngine
     from transcriber.downloader import YouTubeDownloader
+    from transcriber.engine import TranscriptionEngine
 except ImportError:
     # Fall back to relative imports (when running as module)
-    from .engine import TranscriptionEngine
     from .downloader import YouTubeDownloader
+    from .engine import TranscriptionEngine
 
 
 @click.group()
@@ -35,7 +36,9 @@ def main() -> None:
 @click.option(
     "--model",
     default="base",
-    type=click.Choice(["tiny", "base", "small", "medium", "large", "large-v2", "large-v3"]),
+    type=click.Choice(
+        ["tiny", "base", "small", "medium", "large", "large-v2", "large-v3"]
+    ),
     help="Whisper model size (default: base)",
 )
 @click.option(
@@ -93,6 +96,7 @@ def transcribe(
         click.echo(f"Error: {e}", err=True)
         if verbose:
             import traceback
+
             click.echo(traceback.format_exc(), err=True)
         sys.exit(1)
 
@@ -108,7 +112,9 @@ def transcribe(
 @click.option(
     "--model",
     default="base",
-    type=click.Choice(["tiny", "base", "small", "medium", "large", "large-v2", "large-v3"]),
+    type=click.Choice(
+        ["tiny", "base", "small", "medium", "large", "large-v2", "large-v3"]
+    ),
     help="Whisper model size",
 )
 @click.option(
@@ -178,18 +184,27 @@ def models() -> None:
 @main.command()
 def main_script() -> None:
     """Run the main transcription script."""
-    import subprocess
-    import os
-
-    script_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "..", "whisper-transcribe-with-download.sh")
+    script_path = os.path.join(
+        os.path.dirname(os.path.dirname(__file__)),
+        "..",
+        "whisper-transcribe-with-download.sh",
+    )
 
     if not os.path.exists(script_path):
         click.echo("❌ Main script not found!", err=True)
         click.echo(f"Expected at: {script_path}", err=True)
         click.echo("\n📋 Setup Instructions:", err=True)
-        click.echo("1. Install whisper-cli: https://github.com/ggerganov/whisper.cpp", err=True)
-        click.echo("2. Install dependencies: pip install yt-dlp && brew install ffmpeg sox", err=True)
-        click.echo("3. Place whisper-transcribe-with-download.sh in the parent directory", err=True)
+        click.echo(
+            "1. Install whisper-cli: https://github.com/ggerganov/whisper.cpp", err=True
+        )
+        click.echo(
+            "2. Install dependencies: pip install yt-dlp && brew install ffmpeg sox",
+            err=True,
+        )
+        click.echo(
+            "3. Place whisper-transcribe-with-download.sh in the parent directory",
+            err=True,
+        )
         click.echo("4. Download Whisper models to ~/whisper-models/", err=True)
         click.echo("\n💡 Or run: make quick-setup", err=True)
         sys.exit(1)
@@ -200,8 +215,9 @@ def main_script() -> None:
     try:
         # Change to the script directory and run it
         script_dir = os.path.dirname(script_path)
-        result = subprocess.run(["./whisper-transcribe-with-download.sh"],
-                              cwd=script_dir, shell=True)
+        result = subprocess.run(
+            ["./whisper-transcribe-with-download.sh"], cwd=script_dir, shell=True
+        )
         sys.exit(result.returncode)
     except Exception as e:
         click.echo(f"Error running main script: {e}", err=True)

@@ -39,7 +39,9 @@ def test_download_audio_retries_after_first_attempt_fails(monkeypatch, tmp_path)
     monkeypatch.setattr(downloader, "YT_DLP_AVAILABLE", True)
 
     dl = downloader.YouTubeDownloader(output_dir=str(tmp_path))
-    result = dl.download_audio("https://youtu.be/test-id", quality="bestaudio", format="mp3")
+    result = dl.download_audio(
+        "https://youtu.be/test-id", quality="bestaudio", format="mp3"
+    )
 
     assert result == Path(expected_output)
     assert len(attempts) == 2

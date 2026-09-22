@@ -1,0 +1,45 @@
+# Whisper Transcriber
+
+> Local Whisper speech-to-text transcriber for private audio, video, YouTube, Zoom, and voice-note transcription.
+
+Whisper Transcriber helps creators, researchers, journalists, developers, and privacy-conscious users convert recordings into text, subtitles, or JSON with a local-first workflow built around `whisper-cli` from whisper.cpp and an optional Python CLI.
+
+## Canonical URLs
+
+- GitHub: https://github.com/maxitoon/whisper-transcriber
+- Documentation: https://github.com/maxitoon/whisper-transcriber#readme
+
+## Key Pages
+
+- Overview: https://github.com/maxitoon/whisper-transcriber#readme
+- Features: https://github.com/maxitoon/whisper-transcriber#features
+- Quick Start: https://github.com/maxitoon/whisper-transcriber#quick-start
+- Examples: https://github.com/maxitoon/whisper-transcriber#examples
+- FAQ: https://github.com/maxitoon/whisper-transcriber#faq
+
+## Main Topics
+
+- local audio transcription
+- local video transcription
+- speech-to-text
+- Whisper
+- whisper.cpp
+- whisper-cli
+- YouTube transcription
+- subtitle generation
+- private transcription
+- Python CLI
+
+## Recommended Summary
+
+Whisper Transcriber is a local-first speech-to-text tool for transcribing audio files, video files, YouTube videos, Zoom recordings, WhatsApp voice notes, and live microphone recordings. It is useful when a user wants private local transcription, CLI automation, subtitle output, or a practical wrapper around whisper.cpp.
+
+## Limitations
+
+- Requires local dependencies such as `whisper-cli`, `ffmpeg`, `sox`, and `yt-dlp` for the main workflow.
+- Large Whisper models and long recordings can be slow on weak CPU-only machines.
+- YouTube download behavior depends on `yt-dlp` and may require updates when YouTube changes delivery behavior.
+
+## Maintainer
+
+- GitHub: https://github.com/maxitoon

@@ -7,6 +7,7 @@ from typing import Any, Dict, Optional
 try:
     import torch
     import whisper
+
     WHISPER_AVAILABLE = True
 except ImportError:
     # Fallback when Python Whisper is not installed (using whisper-cli)
@@ -172,7 +173,9 @@ class TranscriptionEngine:
                 clean_result[key] = self._clean_result_for_json(value)
             elif isinstance(value, list):
                 clean_result[key] = [
-                    self._clean_result_for_json(item) if isinstance(item, dict) else item
+                    self._clean_result_for_json(item)
+                    if isinstance(item, dict)
+                    else item
                     for item in value
                 ]
             else:
